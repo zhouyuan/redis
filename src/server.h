@@ -1063,6 +1063,8 @@ struct redisServer {
     list *aof_rewrite_buf_blocks;   /* Hold changes during an AOF rewrite. */
     sds aof_buf;      /* AOF buffer, written before entering the event loop */
     int aof_fd;       /* File descriptor of currently selected AOF file */
+    unsigned long long aof_last_sync_offset;
+    int aof_last_write_len;
     int aof_selected_db; /* Currently selected DB in AOF */
     time_t aof_flush_postponed_start; /* UNIX time of postponed AOF flush */
     time_t aof_last_fsync;            /* UNIX time of last fsync() */

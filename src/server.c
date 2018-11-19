@@ -1576,6 +1576,8 @@ void initServerConfig(void) {
     server.aof_lastbgrewrite_status = C_OK;
     server.aof_delayed_fsync = 0;
     server.aof_fd = -1;
+    server.aof_last_sync_offset = 0;
+    server.aof_last_write_len = 0;
     server.aof_selected_db = -1; /* Make sure the first time will not match */
     server.aof_flush_postponed_start = 0;
     server.aof_rewrite_incremental_fsync = CONFIG_DEFAULT_AOF_REWRITE_INCREMENTAL_FSYNC;

@@ -480,6 +480,7 @@ void flushAppendOnlyFile(int force) {
          * flushing metadata. */
         latencyStartMonitor(latency);
         redis_fsync(server.aof_fd); /* Let's try to get this data on the disk */
+        posix_fadvise(server.aof_fd, 0, server.aof_last_sync_offset, POSIX_FADV_DONTNEED);
         latencyEndMonitor(latency);
         latencyAddSampleIfNeeded("aof-fsync-always",latency);
         server.aof_last_fsync = server.unixtime;
@@ -605,9 +606,11 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
     /* Append to the AOF buffer. This will be flushed on disk just before
      * of re-entering the event loop, so before the client will get a
      * positive reply about the operation performed. */
-    if (server.aof_state == AOF_ON)
+    if (server.aof_state == AOF_ON) {
         server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
-
+        server.aof_last_write_len = sdslen(buf);
+        server.aof_last_sync_offset += sdslen(buf);
+    }
     /* If a background append only file rewriting is in progress we want to
      * accumulate the differences between the child DB and the current one
      * in a buffer, so that when the child process will do its work we
