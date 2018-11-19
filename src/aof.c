@@ -479,8 +479,10 @@ void flushAppendOnlyFile(int force) {
         /* redis_fsync is defined as fdatasync() for Linux in order to avoid
          * flushing metadata. */
         latencyStartMonitor(latency);
-        redis_fsync(server.aof_fd); /* Let's try to get this data on the disk */
-        posix_fadvise(server.aof_fd, 0, server.aof_last_sync_offset, POSIX_FADV_DONTNEED);
+        //redis_fsync(server.aof_fd); /* Let's try to get this data on the disk */
+        sync_file_range(server.aof_fd, server.aof_last_sync_offset, server.aof_last_write_len, SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
+        server.aof_last_sync_offset += server.aof_last_write_len;
+        //posix_fadvise(server.aof_fd, 0, server.aof_last_sync_offset, POSIX_FADV_DONTNEED);
         latencyEndMonitor(latency);
         latencyAddSampleIfNeeded("aof-fsync-always",latency);
         server.aof_last_fsync = server.unixtime;
@@ -609,7 +611,9 @@ void feedAppendOnlyFile(struct redisCommand *cmd, int dictid, robj **argv, int a
     if (server.aof_state == AOF_ON) {
         server.aof_buf = sdscatlen(server.aof_buf,buf,sdslen(buf));
         server.aof_last_write_len = sdslen(buf);
-        server.aof_last_sync_offset += sdslen(buf);
+        if (server.aof_last_sync_offset == 0) {
+          posix_fallocate(server.aof_fd, 0, 32212254720);
+        }
     }
     /* If a background append only file rewriting is in progress we want to
      * accumulate the differences between the child DB and the current one

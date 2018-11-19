@@ -2152,7 +2152,7 @@ void initServer(void) {
     /* Open the AOF file if needed. */
     if (server.aof_state == AOF_ON) {
         server.aof_fd = open(server.aof_filename,
-                               O_WRONLY|O_APPEND|O_CREAT,0644);
+                               O_WRONLY|O_CREAT,0644);
         if (server.aof_fd == -1) {
             serverLog(LL_WARNING, "Can't open the append-only file: %s",
                 strerror(errno));
