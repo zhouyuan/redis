@@ -292,7 +292,7 @@ ssize_t aofWrite(int fd, const char *buf, size_t len) {
     ssize_t nwritten = 0, totwritten = 0;
 
     while(len) {
-        nwritten = write(fd, buf, len);
+       nwritten = pwrite(fd, buf+server.aof_last_sync_offset, len, server.aof_last_sync_offset);
 
         if (nwritten < 0) {
             if (errno == EINTR) {
@@ -366,7 +366,7 @@ void flushAppendOnlyFile(int force) {
      * or alike */
 
     latencyStartMonitor(latency);
-    nwritten = aofWrite(server.aof_fd,server.aof_buf,sdslen(server.aof_buf));
+    nwritten = aofWrite(server.aof_fd,server.aof_buf,server.aof_last_write_len);
     latencyEndMonitor(latency);
     /* We want to capture different events for delayed writes:
      * when the delay happens with a pending fsync, or with a saving child
@@ -385,7 +385,7 @@ void flushAppendOnlyFile(int force) {
     /* We performed the write so reset the postponed flush sentinel to zero. */
     server.aof_flush_postponed_start = 0;
 
-    if (nwritten != (ssize_t)sdslen(server.aof_buf)) {
+    if (nwritten != (ssize_t)server.aof_last_write_len) {
         static time_t last_write_error_log = 0;
         int can_log = 0;
 
