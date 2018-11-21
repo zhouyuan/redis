@@ -1851,6 +1851,7 @@ void emptyDbAsync(redisDb *db);
 void slotToKeyFlushAsync(void);
 size_t lazyfreeGetPendingObjectsCount(void);
 void freeObjAsync(robj *o);
+void freeEntryAsync(dict *d, dictEntry *de);
 
 /* API to get key arguments from commands */
 int *getKeysFromCommand(struct redisCommand *cmd, robj **argv, int argc, int *numkeys);
