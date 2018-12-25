@@ -73,6 +73,10 @@ typedef long long mstime_t; /* millisecond time type. */
 #include "endianconv.h"
 #include "crc64.h"
 
+#if defined(USE_MEMKIND)
+#include <memkind.h>
+#endif
+
 /* Error codes */
 #define C_OK                    0
 #define C_ERR                   -1
@@ -1052,6 +1056,9 @@ struct redisServer {
     int supervised_mode;            /* See SUPERVISED_* */
     int daemonize;                  /* True if running as a daemon */
     clientBufferLimitsConfig client_obuf_limits[CLIENT_TYPE_OBUF_COUNT];
+#if defined(USE_MEMKIND)
+    struct memkind* pmem_kind1;
+#endif
     /* AOF persistence */
     int aof_state;                  /* AOF_(ON|OFF|WAIT_REWRITE) */
     int aof_fsync;                  /* Kind of fsync() policy */

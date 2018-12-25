@@ -4157,6 +4157,17 @@ int main(int argc, char **argv) {
     int background = server.daemonize && !server.supervised;
     if (background) daemonize();
 
+#if defined(USE_MEMKIND)
+    int err = memkind_create_pmem("/mnt/pmem0/", 0, &server.pmem_kind1);
+    if (err) {
+        perror("memkind_create_pmem()");
+        fprintf(stderr, "Unable to create pmem partition\n");
+        exit(1);
+    } else {
+        printf("memkind created\n");
+    }
+#endif
+
     initServer();
     if (background || server.pidfile) createPidFile();
     redisSetProcTitle(argv[0]);
