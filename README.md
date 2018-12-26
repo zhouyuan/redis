@@ -86,6 +86,10 @@ malloc by default, with the exception of jemalloc being the default on Linux
 systems. This default was picked because jemalloc has proven to have fewer
 fragmentation problems than libc malloc.
 
+To compiling against memkind malloc, use:
+
+    % make MALLOC=memkind
+
 To force compiling against libc malloc, use:
 
     % make MALLOC=libc
