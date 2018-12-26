@@ -187,22 +187,37 @@ void dbAdd(redisDb *db, robj *key, robj *val) {
  *
  * The program is aborted if the key was not already present. */
 void dbOverwrite(redisDb *db, robj *key, robj *val) {
-    dictEntry *de = dictFind(db->dict,key->ptr);
 
-    serverAssertWithInfo(NULL,key,de != NULL);
-    dictEntry auxentry = *de;
-    robj *old = dictGetVal(de);
-    if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
-        val->lru = old->lru;
+    if (server.rdb_child_pid != -1) {
+        // remove from ht but not free
+        dictEntry *old_de = dictUnlink(db->dict, key->ptr);
+
+        sds copy = sdsdup(key->ptr);
+	dictAdd(db->dict, copy, val);
+
+        freeEntryAsync(db->dict, old_de);
+
+
+    } else {
+        dictEntry *de = dictFind(db->dict,key->ptr);
+
+        serverAssertWithInfo(NULL,key,de != NULL);
+
+
+        dictEntry auxentry = *de;
+        robj *old = dictGetVal(de);
+        if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
+            val->lru = old->lru;
+        }
+        dictSetVal(db->dict, de, val);
+
+        if (server.lazyfree_lazy_server_del) {
+            freeObjAsync(old);
+            dictSetVal(db->dict, &auxentry, NULL);
+        }
+
+        dictFreeVal(db->dict, &auxentry);
     }
-    dictSetVal(db->dict, de, val);
-
-    if (server.lazyfree_lazy_server_del) {
-        freeObjAsync(old);
-        dictSetVal(db->dict, &auxentry, NULL);
-    }
-
-    dictFreeVal(db->dict, &auxentry);
 }
 
 /* High level Set operation. This function can be used in order to set
