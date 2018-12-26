@@ -27,8 +27,8 @@ void *memkind_alloc_wrapper(size_t size) {
     return ptr;
 }
 
-void *memkind_calloc_wrapper(size_t size) {
-    void *ptr = memkind_calloc(server.pmem_kind1, 1, size);
+void *memkind_calloc_wrapper(size_t number, size_t size) {
+    void *ptr = memkind_calloc(server.pmem_kind1, number, size);
     if (ptr) {
         size = jemk_malloc_usable_size(ptr);
         update_memkind_malloc_stat_alloc(size);
@@ -62,17 +62,6 @@ void memkind_free_wrapper(void *ptr) {
     memkind_free(server.pmem_kind1, ptr);
 }
 
-void memkind_free_no_tcache_wrapper(void *ptr) {
-    if(!ptr) return;
-#ifdef RDEBUG
-    serverAssert(memkind_range(server.pmem_kind1, ptr));
-#endif
-    size_t oldsize;
-    oldsize = jemk_malloc_usable_size(ptr);
-    update_memkind_malloc_stat_free(oldsize);
-    jemk_dallocx(ptr, MALLOCX_TCACHE_NONE);
-}
-
 size_t memkind_malloc_used_memory(void){
     size_t um;
     atomicGet(used_memory,um);
@@ -86,4 +75,3 @@ void *pmem_memcpy_wrapper(void *pmemdest, const void *src, size_t len){
 void *pmem_memset_wrapper(void *pmemdest, int c, size_t len){
     return pmem_memset(pmemdest, c, len, PMEM_F_MEM_NONTEMPORAL|PMEM_F_MEM_NODRAIN);
 }
-

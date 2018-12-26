@@ -31,6 +31,10 @@
 #ifndef __ZMALLOC_H
 #define __ZMALLOC_H
 
+#if defined(USE_MEMKIND)
+#include "memkind_malloc.h"
+#endif
+
 /* Double expansion needed for stringification of macro values. */
 #define __xstr(s) __str(s)
 #define __str(s) #s

@@ -69,6 +69,15 @@ void zlibc_free(void *ptr) {
 #define free(ptr) je_free(ptr)
 #define mallocx(size,flags) je_mallocx(size,flags)
 #define dallocx(ptr,flags) je_dallocx(ptr,flags)
+#elif defined(USE_MEMKIND)
+#define malloc memkind_alloc_wrapper
+#define calloc memkind_calloc_wrapper
+#define realloc memkind_realloc_wrapper
+#define free memkind_free_wrapper
+#define malloc_usable_size jemk_malloc_usable_size
+#define get_defrag_hint jemk_get_defrag_hint
+#define memcpy pmem_memcpy_wrapper
+#define memset pmem_memset_wrapper
 #endif
 
 #define update_zmalloc_stat_alloc(__n) do { \
