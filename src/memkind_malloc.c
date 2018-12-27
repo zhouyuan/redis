@@ -29,6 +29,7 @@ void *memkind_alloc_wrapper(size_t size) {
 
 void *memkind_calloc_wrapper(size_t number, size_t size) {
     void *ptr = memkind_calloc(server.pmem_kind1, number, size);
+    printf("memkind calloc\n");
     if (ptr) {
         size = jemk_malloc_usable_size(ptr);
         update_memkind_malloc_stat_alloc(size);

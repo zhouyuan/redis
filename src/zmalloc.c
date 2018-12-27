@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+#include <assert.h>
 
 /* This function provide us access to the original libc free(). This is useful
  * for instance to free results obtained by backtrace_symbols(). We need
@@ -40,6 +42,36 @@ void zlibc_free(void *ptr) {
     free(ptr);
 }
 
+void* zlibc_malloc(size_t size) {
+   return malloc(size);
+}
+
+void* zlibc_calloc(size_t size) {
+    void *ptr = malloc(size);
+    if (!ptr) assert(0);
+    memset(ptr, '\0', size);
+/*
+    void* ptr = calloc(1, size);
+    if (size == 131072) {
+       printf("BBBB %x\n", ptr);
+    }
+    return ptr;
+    void *ptr = calloc(1, size+PREFIX_SIZE);
+
+    if (!ptr) zmalloc_oom_handler(size);
+*/
+    return ptr;
+
+}
+
+
+void zlibc_memcpy(void *dest, const void *src, size_t n) {
+   memcpy(dest, src, n);
+}
+
+void zlibc_memset(void *s, int c, size_t n) {
+   memset(s, c, n);
+}
 #include <string.h>
 #include <pthread.h>
 #include "config.h"

@@ -217,8 +217,10 @@ static inline void sdssetalloc(sds s, size_t newlen) {
 
 sds sdsnewlen(const void *init, size_t initlen);
 sds sdsnew(const char *init);
+sds sdsnewA(const char *init);
 sds sdsempty(void);
 sds sdsdup(const sds s);
+sds sdsdupA(const sds s);
 void sdsfree(sds s);
 sds sdsgrowzero(sds s, size_t len);
 sds sdscatlen(sds s, const void *t, size_t len);

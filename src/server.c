@@ -2048,7 +2048,7 @@ void initServer(void) {
             strerror(errno));
         exit(1);
     }
-    server.db = zmalloc(sizeof(redisDb)*server.dbnum);
+    server.db = zlibc_malloc(sizeof(redisDb)*server.dbnum);
 
     /* Open the TCP listening socket for the user commands. */
     if (server.port != 0 &&
@@ -2212,10 +2212,10 @@ void populateCommandTable(void) {
             f++;
         }
 
-        retval1 = dictAdd(server.commands, sdsnew(c->name), c);
+        retval1 = dictAdd(server.commands, sdsnewA(c->name), c);
         /* Populate an additional dictionary that will be unaffected
          * by rename-command statements in redis.conf. */
-        retval2 = dictAdd(server.orig_commands, sdsnew(c->name), c);
+        retval2 = dictAdd(server.orig_commands, sdsnewA(c->name), c);
         serverAssert(retval1 == DICT_OK && retval2 == DICT_OK);
     }
 }

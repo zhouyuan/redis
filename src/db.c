@@ -171,7 +171,7 @@ robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
  *
  * The program is aborted if the key already exists. */
 void dbAdd(redisDb *db, robj *key, robj *val) {
-    sds copy = sdsdup(key->ptr);
+    sds copy = sdsdupA(key->ptr);
     int retval = dictAdd(db->dict, copy, val);
 
     serverAssertWithInfo(NULL,key,retval == DICT_OK);
@@ -192,7 +192,7 @@ void dbOverwrite(redisDb *db, robj *key, robj *val) {
         // remove from ht but not free
         dictEntry *old_de = dictUnlink(db->dict, key->ptr);
 
-        sds copy = sdsdup(key->ptr);
+        sds copy = sdsdupA(key->ptr);
 	dictAdd(db->dict, copy, val);
 
         freeEntryAsync(db->dict, old_de);
