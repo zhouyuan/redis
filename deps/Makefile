@@ -37,9 +37,9 @@ distclean:
 	-(cd linenoise && $(MAKE) clean) > /dev/null || true
 	-(cd lua && $(MAKE) clean) > /dev/null || true
 	-(cd jemalloc && [ -f Makefile ] && $(MAKE) distclean) > /dev/null || true
-	-(cd memkind/jemalloc/obj && $(MAKE) distclean) > /dev/null || true
-	-(cd memkind && $(MAKE) distclean ) > /dev/null || true
+	-(cd memkind && $(MAKE) clean ) > /dev/null || true
 	-(rm memkind/configure) > /dev/null || true
+	-(rm memkind/jemalloc/obj/lib/libjemalloc_pic.a) > /dev/null || true
 	-(rm -f .make-*)
 
 .PHONY: distclean
