@@ -489,6 +489,8 @@ robj *tryObjectEncoding(robj *o) {
     {
         o->ptr = sdsRemoveFreeSpace(o->ptr);
     }
+    // move string type content to PMEM
+    o = dupObject(o);
 
     /* Return the original object. */
     return o;
@@ -1448,4 +1450,28 @@ NULL
     } else {
         addReplyErrorFormat(c, "Unknown subcommand or wrong number of arguments for '%s'. Try MEMORY HELP", (char*)c->argv[1]->ptr);
     }
+}
+
+robj *dupObject(robj* o) {
+    if (!o->ptr) return o;
+    if (o->encoding == OBJ_ENCODING_INT) return o;
+
+    int len = sdslen(o->ptr);
+    if (len <= 44) return o;
+    void* copy = sdsnewlenPM(o->ptr, len);
+
+    switch(o->type) {
+      case OBJ_STRING: freeStringObject(o); break;
+      case OBJ_LIST: freeListObject(o); break;
+      case OBJ_SET: freeSetObject(o); break;
+      case OBJ_ZSET: freeZsetObject(o); break;
+      case OBJ_HASH: freeHashObject(o); break;
+      case OBJ_MODULE: freeModuleObject(o); break;
+      case OBJ_STREAM: freeStreamObject(o); break;
+      default: serverPanic("Unknown object type"); break;
+    }
+
+    o->ptr = copy;
+
+    return o;
 }
