@@ -143,6 +143,8 @@ robj *listTypeGet(listTypeEntry *entry) {
 void listTypeInsert(listTypeEntry *entry, robj *value, int where) {
     if (entry->li->encoding == OBJ_ENCODING_QUICKLIST) {
         value = getDecodedObject(value);
+        // move list content to PM
+        value = dupObject(value);
         sds str = value->ptr;
         size_t len = sdslen(str);
         if (where == LIST_TAIL) {
@@ -351,6 +353,8 @@ void lsetCommand(client *c) {
 
     if (o->encoding == OBJ_ENCODING_QUICKLIST) {
         quicklist *ql = o->ptr;
+        // move list content to PM
+        value = dupObject(value);
         int replaced = quicklistReplaceAtIndex(ql, index,
                                                value->ptr, sdslen(value->ptr));
         if (!replaced) {

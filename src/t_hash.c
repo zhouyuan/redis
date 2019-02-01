@@ -226,9 +226,9 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
 
         if (!update) {
             /* Push new field/value pair onto the tail of the ziplist */
-            zl = ziplistPush(zl, (unsigned char*)field, sdslen(field),
+            zl = ziplistPush(zl, (unsigned char*)sdstoPM(field), sdslen(field),
                     ZIPLIST_TAIL);
-            zl = ziplistPush(zl, (unsigned char*)value, sdslen(value),
+            zl = ziplistPush(zl, (unsigned char*)sdstoPM(value), sdslen(value),
                     ZIPLIST_TAIL);
         }
         o->ptr = zl;
@@ -261,6 +261,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
             } else {
                 v = sdsdup(value);
             }
+            v = sdstoPM(v);
             dictAdd(o->ptr,f,v);
         }
     } else {

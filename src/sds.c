@@ -219,6 +219,12 @@ sds sdsdup(const sds s) {
     return sdsnewlen(s, sdslen(s));
 }
 
+sds sdstoPM(sds s) {
+    if ((s[-1] & SDS_TYPE_MASK) <= SDS_TYPE_8) return s;
+    sds new = sdsnewlenPM(s, sdslen(s));
+    sdsfree(s);
+    return new;
+}
 /* Free an sds string. No operation is performed if 's' is NULL. */
 void sdsfree(sds s) {
     if (s == NULL) return;
