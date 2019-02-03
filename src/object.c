@@ -415,28 +415,24 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
     }
 }
 
-robj *dupObject(robj* o) {
+void *dupObjectPM(robj* o) {
+    //TODO(): dup list/set/hash/zset contents
     if (!o->ptr) return o;
     if (o->encoding == OBJ_ENCODING_INT) return o;
+
+    uint64_t *is_ram = (uint64_t*)((char*)(o->ptr) - MEMKIND_PREFIX_SIZE);
+    if (*is_ram) {
+      return o->ptr;
+    }
 
     int len = sdslen(o->ptr);
     if (len <= 44) return o;
     void* copy = sdsnewlenPM(o->ptr, len);
-
-    switch(o->type) {
-      case OBJ_STRING: freeStringObject(o); break;
-      case OBJ_LIST: freeListObject(o); break;
-      case OBJ_SET: freeSetObject(o); break;
-      case OBJ_ZSET: freeZsetObject(o); break;
-      case OBJ_HASH: freeHashObject(o); break;
-      case OBJ_MODULE: freeModuleObject(o); break;
-      case OBJ_STREAM: freeStreamObject(o); break;
-      default: serverPanic("Unknown object type"); break;
-    }
+    void* old = o->ptr;
 
     o->ptr = copy;
 
-    return o;
+    return old;
 }
 
 /* Try to encode a string object in order to save space */
@@ -514,7 +510,7 @@ robj *tryObjectEncoding(robj *o) {
         o->ptr = sdsRemoveFreeSpace(o->ptr);
     }
     // move string type content to PMEM
-    o = dupObject(o);
+    o->ptr = sdstoPM(o->ptr);
 
     /* Return the original object. */
     return o;

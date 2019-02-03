@@ -1309,6 +1309,7 @@ int rdbSaveBackground(char *filename, rdbSaveInfo *rsi) {
             server.child_info_data.cow_size = private_dirty;
             sendChildInfo(CHILD_INFO_TYPE_RDB);
         }
+        freeContentAsync(NULL);
         exitFromChild((retval == C_OK) ? 0 : 1);
     } else {
         /* Parent */
@@ -2342,6 +2343,7 @@ int rdbSaveToSlavesSockets(rdbSaveInfo *rsi) {
         }
         zfree(clientids);
         rioFreeFdset(&slave_sockets);
+        freeContentAsync(NULL);
         exitFromChild((retval == C_OK) ? 0 : 1);
     } else {
         /* Parent */
