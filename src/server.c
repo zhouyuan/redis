@@ -2438,6 +2438,19 @@ void call(client *c, int flags) {
     redisOpArray prev_also_propagate = server.also_propagate;
     redisOpArrayInit(&server.also_propagate);
 
+    if ((client_old_flags || CMD_WRITE) && server.rdb_child_pid != -1) {
+        // cow: dup content on pmem if key exists already
+        if (c->argc >=2) {
+          robj *key = c->argv[1];
+          redisDb *db = c->db;
+          if (lookupKeyWrite(db, key) != NULL) {
+              dictEntry *de = dictFind(db->dict,key->ptr);
+              robj *val = dictGetVal(de);
+              void *pmem_addr = dupObjectPM(val);
+              freeContentAsync(pmem_addr);
+          }
+        }
+    }
     /* Call the command. */
     dirty = server.dirty;
     start = ustime();

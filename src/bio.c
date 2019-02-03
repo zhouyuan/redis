@@ -142,6 +142,22 @@ void bioCreateBackgroundJob(int type, void *arg1, void *arg2, void *arg3) {
     pthread_mutex_unlock(&bio_mutex[type]);
 }
 
+void bioCreateBackgroundJobWait(int type, void *arg1, void *arg2, void *arg3) {
+    struct bio_job *job = zmalloc(sizeof(*job));
+
+    job->time = time(NULL);
+    job->arg1 = arg1;
+    job->arg2 = arg2;
+    job->arg3 = arg3;
+    pthread_mutex_lock(&bio_mutex[type]);
+    listAddNodeTail(bio_jobs[type],job);
+    bio_pending[type]++;
+    if (server.rdb_child_pid == -1) {
+      pthread_cond_signal(&bio_newjob_cond[type]);
+    }
+    pthread_mutex_unlock(&bio_mutex[type]);
+}
+
 void *bioProcessBackgroundJobs(void *arg) {
     struct bio_job *job;
     unsigned long type = (unsigned long) arg;
@@ -199,6 +215,8 @@ void *bioProcessBackgroundJobs(void *arg) {
                 lazyfreeFreeDatabaseFromBioThread(job->arg2,job->arg3);
             else if (job->arg3)
                 lazyfreeFreeSlotsMapFromBioThread(job->arg3);
+        } else if(type == BIO_LAZY_FREE_CONTENT) {
+            zfree(job->arg1);
         } else {
             serverPanic("Wrong job type in bioProcessBackgroundJobs().");
         }
