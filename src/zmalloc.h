@@ -95,7 +95,8 @@ void *zmemset(void* ptr, int value, size_t num);
 
 #ifdef USE_MEMKIND
 #define MEMKIND_PREFIX_SIZE 8
-void zmalloc_init_pmem_free(void (*_pmem_free)(void*));
+void zmalloc_init_pmem_functions(void (*_pmem_free)(void*),
+                                 void* (*_pmem_realloc)(void*,size_t));
 #endif
 
 #ifdef HAVE_DEFRAG

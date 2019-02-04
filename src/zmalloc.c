@@ -88,8 +88,11 @@ pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #ifdef USE_MEMKIND
 static void (*pmem_free)(void* ptr) = NULL;
-void zmalloc_init_pmem_free(void (*_pmem_free)(void*)) {
+static void* (*pmem_realloc)(void* ptr,size_t size) = NULL;
+void zmalloc_init_pmem_functions(void (*_pmem_free)(void*),
+                            void* (*_pmem_realloc)(void*,size_t)){
     pmem_free = _pmem_free;
+    pmem_realloc = _pmem_realloc;
 }
 #endif
 
@@ -202,13 +205,25 @@ void *zrealloc(void *ptr, size_t size) {
 #ifdef USE_MEMKIND
     void* new_ptr = NULL;
     if (ptr) {
-        new_ptr = zrealloc_local((void*)((char*)(ptr) - MEMKIND_PREFIX_SIZE), size + MEMKIND_PREFIX_SIZE);
+        uint64_t *is_ram = (uint64_t*)((char*)(ptr) - MEMKIND_PREFIX_SIZE);
+        if(*is_ram) {
+            new_ptr = zrealloc_local((void*)(is_ram), size + MEMKIND_PREFIX_SIZE);
+            uint64_t *is_ram = new_ptr;
+            *is_ram = 1;
+            return (char*)new_ptr + MEMKIND_PREFIX_SIZE;
+        }
+        else {
+            new_ptr = pmem_realloc((void*)(is_ram), size + MEMKIND_PREFIX_SIZE);
+            uint64_t *is_ram = new_ptr;
+            *is_ram = 0;
+            return (char*)new_ptr + MEMKIND_PREFIX_SIZE;
+        }
     } else {
         new_ptr = zmalloc_local(size + MEMKIND_PREFIX_SIZE);
+            uint64_t *is_ram = new_ptr;
+            *is_ram = 1;
+            return (char*)new_ptr + MEMKIND_PREFIX_SIZE;
     }
-    uint64_t *is_ram = new_ptr;
-    *is_ram = 1;
-    return (char*)new_ptr + MEMKIND_PREFIX_SIZE;
 #else
     return zrealloc_local(ptr,size);
 #endif
