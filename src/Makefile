@@ -29,6 +29,7 @@ endif
 WARN=-Wall -W -Wno-missing-field-initializers
 OPT=$(OPTIMIZATION)
 
+TEST_PMEM_DIR_PATH=/mnt/pmem/
 PREFIX?=/usr/local
 INSTALL_BIN=$(PREFIX)/bin
 INSTALL=install
@@ -152,6 +153,7 @@ ifeq ($(MALLOC),jemalloc)
 endif
 
 ifeq ($(PERSISTENT_MALLOC),memkind)
+	FINAL_CFLAGS+= -DUSE_MEMKIND
 	FINAL_LIBS+= -lpmem -lnuma
 endif
 
@@ -269,6 +271,9 @@ distclean: clean
 .PHONY: distclean
 
 test: $(REDIS_SERVER_NAME) $(REDIS_CHECK_AOF_NAME)
+ifeq ($(wildcard $(TEST_PMEM_DIR_PATH)),)
+	$(error pmem directory used in test: $(TEST_PMEM_DIR_PATH) does not exist)
+endif
 	@(cd ..; ./runtest)
 
 test-sentinel: $(REDIS_SENTINEL_NAME)

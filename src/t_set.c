@@ -55,7 +55,7 @@ int setTypeAdd(robj *subject, sds value) {
         dict *ht = subject->ptr;
         dictEntry *de = dictAddRaw(ht,value,NULL);
         if (de) {
-            dictSetKey(ht,de,sdsdup(value));
+            dictSetKey(ht,de,sdstoPM(sdsdup(value)));
             dictSetVal(ht,de,NULL);
             return 1;
         }
