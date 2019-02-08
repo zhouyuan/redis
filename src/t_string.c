@@ -232,6 +232,7 @@ void setrangeCommand(client *c) {
 
     if (sdslen(value) > 0) {
         o->ptr = sdsgrowzero(o->ptr,offset+sdslen(value));
+        o->ptr = sdstoPM(o->ptr);
         memcpy((char*)o->ptr+offset,value,sdslen(value));
         signalModifiedKey(c->db,c->argv[1]);
         notifyKeyspaceEvent(NOTIFY_STRING,
@@ -455,6 +456,7 @@ void appendCommand(client *c) {
         /* Append the value */
         o = dbUnshareStringValue(c->db,c->argv[1],o);
         o->ptr = sdscatlen(o->ptr,append->ptr,sdslen(append->ptr));
+        o->ptr = sdstoPM(o->ptr);
         totlen = sdslen(o->ptr);
     }
     signalModifiedKey(c->db,c->argv[1]);

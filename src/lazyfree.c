@@ -101,6 +101,10 @@ void freeObjAsync(robj *o) {
     }
 }
 
+void freeContentAsync(void* ptr) {
+    bioCreateBackgroundJobWait(BIO_LAZY_FREE_CONTENT,ptr,NULL,NULL);
+}
+
 /* Empty a Redis DB asynchronously. What the function does actually is to
  * create a new empty set of hash tables and scheduling the old ones for
  * lazy freeing. */
