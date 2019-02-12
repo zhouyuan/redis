@@ -1540,6 +1540,7 @@ void freeHashObject(robj *o);
 void *dupObjectPM(robj* o);
 robj *createObject(int type, void *ptr);
 robj *createStringObject(const char *ptr, size_t len);
+robj *createStringObjectPM(const char *ptr, size_t len);
 robj *createRawStringObject(const char *ptr, size_t len);
 robj *createEmbeddedStringObject(const char *ptr, size_t len);
 robj *dupStringObject(const robj *o);

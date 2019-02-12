@@ -495,10 +495,10 @@ NULL
             }
             snprintf(buf,sizeof(buf),"value:%lu",j);
             if (valsize==0)
-                val = createStringObject(buf,strlen(buf));
+                val = createStringObjectPM(buf,strlen(buf));
             else {
                 int buflen = strlen(buf);
-                val = createStringObject(NULL,valsize);
+                val = createStringObjectPM(NULL,valsize);
                 memcpy(val->ptr, buf, valsize<=buflen? valsize: buflen);
             }
             dbAdd(c->db,key,val);
