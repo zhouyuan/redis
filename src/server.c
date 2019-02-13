@@ -4060,7 +4060,7 @@ int main(int argc, char **argv) {
     tzset(); /* Populates 'timezone' global. */
     zmalloc_set_oom_handler(redisOutOfMemoryHandler);
     #ifdef USE_MEMKIND
-    zmalloc_init_pmem_functions(memkind_free_wrapper,memkind_realloc_wrapper);
+    zmalloc_init_pmem_functions(memkind_alloc_wrapper,memkind_free_wrapper,memkind_realloc_wrapper);
     #endif
     srand(time(NULL)^getpid());
     gettimeofday(&tv,NULL);
