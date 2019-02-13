@@ -78,6 +78,7 @@
 #endif
 
 void *zmalloc(size_t size);
+void *zmalloc_pmem(size_t size);
 void *zcalloc(size_t size);
 void *zrealloc(void *ptr, size_t size);
 void zfree(void *ptr);
@@ -95,7 +96,8 @@ void *zmemset(void* ptr, int value, size_t num);
 
 #ifdef USE_MEMKIND
 #define MEMKIND_PREFIX_SIZE 8
-void zmalloc_init_pmem_functions(void (*_pmem_free)(void*),
+void zmalloc_init_pmem_functions(void* (*_pmem_malloc)(size_t),
+                                 void (*_pmem_free)(void*),
                                  void* (*_pmem_realloc)(void*,size_t));
 #endif
 

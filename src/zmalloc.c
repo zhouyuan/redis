@@ -87,10 +87,14 @@ static size_t used_memory = 0;
 pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #ifdef USE_MEMKIND
+static void* (*pmem_malloc)(size_t size) = NULL;
 static void (*pmem_free)(void* ptr) = NULL;
 static void* (*pmem_realloc)(void* ptr,size_t size) = NULL;
-void zmalloc_init_pmem_functions(void (*_pmem_free)(void*),
+void zmalloc_init_pmem_functions(void* (*_pmem_malloc)(size_t),
+                            void (*_pmem_free)(void*),
                             void* (*_pmem_realloc)(void*,size_t)){
+
+    pmem_malloc = _pmem_malloc;
     pmem_free = _pmem_free;
     pmem_realloc = _pmem_realloc;
 }
@@ -116,6 +120,17 @@ void *zmalloc_local(size_t size) {
     *((size_t*)ptr) = size;
     update_zmalloc_stat_alloc(size+PREFIX_SIZE);
     return (char*)ptr+PREFIX_SIZE;
+#endif
+}
+
+void *zmalloc_pmem(size_t size) {
+#ifdef USE_MEMKIND
+    void* ptr = pmem_malloc(size + MEMKIND_PREFIX_SIZE);
+    uint64_t *is_ram = ptr;
+    *is_ram = 0;
+    return (void*)((char*)ptr + MEMKIND_PREFIX_SIZE);
+#else
+    return zmalloc_local(size);
 #endif
 }
 
