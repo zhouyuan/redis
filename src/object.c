@@ -78,6 +78,11 @@ robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
 }
 
+robj *createRawStringObjectPM(const char *ptr, size_t len) {
+    return createObject(OBJ_STRING, sdsnewlenPM(ptr,len));
+}
+
+
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
@@ -121,6 +126,10 @@ robj *createStringObject(const char *ptr, size_t len) {
         return createEmbeddedStringObject(ptr,len);
     else
         return createRawStringObject(ptr,len);
+}
+
+robj *createStringObjectPM(const char *ptr, size_t len) {
+    return createRawStringObjectPM(ptr,len);
 }
 
 /* Create a string object from a long long value. When possible returns a
