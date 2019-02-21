@@ -1199,6 +1199,7 @@ void zsetConvert(robj *zobj, int encoding) {
             else
                 ele = sdsnewlen((char*)vstr,vlen);
 
+            ele = sdstoPM(ele);
             node = zslInsert(zs->zsl,score,ele);
             serverAssert(dictAdd(zs->dict,ele,&node->score) == DICT_OK);
             zzlNext(zl,&eptr,&sptr);
@@ -1222,6 +1223,7 @@ void zsetConvert(robj *zobj, int encoding) {
         zfree(zs->zsl);
 
         while (node) {
+            node->ele = sdstoPM(node->ele);
             zl = zzlInsertAt(zl,NULL,node->ele,node->score);
             next = node->level[0].forward;
             zslFreeNode(node);
@@ -1404,6 +1406,7 @@ int zsetAdd(robj *zobj, double score, sds ele, int *flags, double *newscore) {
             return 1;
         } else if (!xx) {
             ele = sdsdup(ele);
+            ele = sdstoPM(ele);
             znode = zslInsert(zs->zsl,score,ele);
             serverAssert(dictAdd(zs->dict,ele,&znode->score) == DICT_OK);
             *flags |= ZADD_ADDED;

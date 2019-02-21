@@ -76,7 +76,7 @@ int setTypeAdd(robj *subject, sds value) {
 
             /* The set *was* an intset and this value is not integer
              * encodable, so dictAdd should always work. */
-            serverAssert(dictAdd(subject->ptr,sdsdup(value),NULL) == DICT_OK);
+            serverAssert(dictAdd(subject->ptr,sdstoPM(sdsdup(value)),NULL) == DICT_OK);
             return 1;
         }
     } else {

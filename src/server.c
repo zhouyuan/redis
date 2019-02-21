@@ -2446,8 +2446,7 @@ void call(client *c, int flags) {
           if (lookupKeyWrite(db, key) != NULL) {
               dictEntry *de = dictFind(db->dict,key->ptr);
               robj *val = dictGetVal(de);
-              void *pmem_addr = dupObjectPM(val);
-              freeContentAsync(pmem_addr);
+              dupObjectPM(val);
           }
         }
     }

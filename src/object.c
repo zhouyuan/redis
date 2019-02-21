@@ -424,24 +424,101 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
     }
 }
 
-void *dupObjectPM(robj* o) {
-    //TODO(): dup list/set/hash/zset contents
-    if (!o->ptr) return o;
-    if (o->encoding == OBJ_ENCODING_INT) return o;
-
-    uint64_t *is_ram = (uint64_t*)((char*)(o->ptr) - MEMKIND_PREFIX_SIZE);
+sds dupPM(sds ele) {
+    uint64_t *is_ram = (uint64_t*)((char*)(ele) - MEMKIND_PREFIX_SIZE);
     if (*is_ram) {
-      return o->ptr;
+      return ele;
     }
 
-    int len = sdslen(o->ptr);
-    if (len <= 44) return o;
-    void* copy = sdsnewlenPM(o->ptr, len);
-    void* old = o->ptr;
+    int len = sdslen(ele);
+    void* copy = sdsnewlenPM(ele, len);
 
-    o->ptr = copy;
+    void* old = ele;
+    freeContentAsync(old);
 
-    return old;
+    return copy;
+}
+
+void dupObjectPM(robj* o) {
+    //TODO(): dup list/set/hash/zset contents
+    if (!o->ptr) return;
+    if (o->type == OBJ_STRING) {
+        if (o->encoding == OBJ_ENCODING_INT) return;
+        sds ele = o->ptr;
+        o->ptr = dupPM(ele);
+
+    } else if (o->type == OBJ_LIST) {
+        if (o->encoding == OBJ_ENCODING_QUICKLIST) {
+            quicklist *ql = o->ptr;
+            quicklistNode *node = ql->head;
+            while(node) {
+                if (quicklistNodeIsCompressed(node)) {
+                    //TODO(): need to extract first?
+                    sds ele = node->zl;
+                    node->zl = dupPM(ele);
+                } else {
+                    sds ele = node->zl;
+                    node->zl = dupPM(ele);
+                }
+                node = node->next;
+            }
+        } else {
+            serverPanic("Unknown list encoding");
+        }
+    }  else if (o->type == OBJ_ZSET) {
+        if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+           o->ptr = dupPM(o->ptr);
+        } else if (o->encoding == OBJ_ENCODING_SKIPLIST) {
+            zset *zs = o->ptr;
+            zskiplist *zsl = zs->zsl;
+            zskiplistNode *zn = zsl->tail;
+            while (zn != NULL) {
+                sds ele = zn->ele;
+                zn->ele = dupPM(ele);
+
+                zn = zn->backward;
+            }
+        } else {
+            serverPanic("Unknown sorted set encoding");
+        }
+    } else if (o->type == OBJ_SET) {
+        if (o->encoding == OBJ_ENCODING_HT) {
+            dict *set = o->ptr;
+            dictIterator *di = dictGetIterator(set);
+            dictEntry *de;
+            while((de = dictNext(di)) != NULL) {
+                sds ele = dictGetKey(de);
+                de->key = dupPM(ele);
+            }
+            dictReleaseIterator(di);
+        } else if (o->encoding == OBJ_ENCODING_INTSET) {
+            // skip here as we dont store intset on PMEM
+        } else {
+            serverPanic("Unknown set encoding");
+        }
+    } else if (o->type == OBJ_HASH) {
+        if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+           o->ptr = dupPM(o->ptr);
+        } else if (o->encoding == OBJ_ENCODING_HT) {
+            dictIterator *di = dictGetIterator(o->ptr);
+            dictEntry *de;
+            while((de = dictNext(di)) != NULL) {
+                sds field = dictGetKey(de);
+                dictGetKey(de) = dupPM(field);
+
+                sds value = dictGetVal(de);
+                dictGetVal(de) = dupPM(value);
+            }
+            dictReleaseIterator(di);
+        } else {
+            serverPanic("Unknown hash encoding");
+        }
+    } else if (o->type == OBJ_STREAM) {
+    } else if (o->type == OBJ_MODULE) {
+    } else {
+        serverPanic("Unknown object type");
+    }
+
 }
 
 /* Try to encode a string object in order to save space */

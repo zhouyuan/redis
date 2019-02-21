@@ -219,7 +219,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
                 zl = ziplistDelete(zl, &vptr);
 
                 /* Insert new value */
-                zl = ziplistInsert(zl, vptr, (unsigned char*)value,
+                zl = ziplistInsert(zl, vptr, (unsigned char*)sdstoPM(value),
                         sdslen(value));
             }
         }
@@ -241,10 +241,10 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
         if (de) {
             sdsfree(dictGetVal(de));
             if (flags & HASH_SET_TAKE_VALUE) {
-                dictGetVal(de) = value;
+                dictGetVal(de) = sdstoPM(value);
                 value = NULL;
             } else {
-                dictGetVal(de) = sdsdup(value);
+                dictGetVal(de) = sdstoPM(sdsdup(value));
             }
             update = 1;
         } else {
@@ -261,8 +261,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
             } else {
                 v = sdsdup(value);
             }
-            v = sdstoPM(v);
-            dictAdd(o->ptr,f,v);
+            dictAdd(o->ptr,sdstoPM(f),sdstoPM(v));
         }
     } else {
         serverPanic("Unknown hash encoding");
@@ -482,7 +481,7 @@ void hashTypeConvertZiplist(robj *o, int enc) {
 
             key = hashTypeCurrentObjectNewSds(hi,OBJ_HASH_KEY);
             value = hashTypeCurrentObjectNewSds(hi,OBJ_HASH_VALUE);
-            ret = dictAdd(dict, key, value);
+            ret = dictAdd(dict, key, sdstoPM(value));
             if (ret != DICT_OK) {
                 serverLogHexDump(LL_WARNING,"ziplist with dup elements dump",
                     o->ptr,ziplistBlobLen(o->ptr));

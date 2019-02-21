@@ -1537,7 +1537,7 @@ void freeListObject(robj *o);
 void freeSetObject(robj *o);
 void freeZsetObject(robj *o);
 void freeHashObject(robj *o);
-void *dupObjectPM(robj* o);
+void dupObjectPM(robj* o);
 robj *createObject(int type, void *ptr);
 robj *createStringObject(const char *ptr, size_t len);
 robj *createStringObjectPM(const char *ptr, size_t len);
