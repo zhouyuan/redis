@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 - 2018 Intel Corporation.
+ * Copyright (C) 2014 - 2019 Intel Corporation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,8 @@ MEMKIND_EXPORT int memkind_default_posix_memalign(struct memkind *kind,
                                                   void **memptr, size_t alignment, size_t size)
 {
     if(MEMKIND_UNLIKELY(size_out_of_bounds(size))) {
-        return EINVAL;
+        *memptr = NULL;
+        return 0;
     }
     return jemk_posix_memalign(memptr, alignment, size);
 }
@@ -102,6 +103,7 @@ MEMKIND_EXPORT void *memkind_default_realloc(struct memkind *kind, void *ptr,
                                              size_t size)
 {
     if(MEMKIND_UNLIKELY(size_out_of_bounds(size))) {
+        jemk_free(ptr);
         return NULL;
     }
     return jemk_realloc(ptr, size);
@@ -117,6 +119,18 @@ MEMKIND_EXPORT size_t memkind_default_malloc_usable_size(struct memkind *kind,
 {
     return jemk_malloc_usable_size(ptr);
 }
+
+MEMKIND_EXPORT int memkind_default_get_defrag_hint(void *ptr, int *bin_util,
+                                                   int *run_util)
+{
+#ifdef JEMALLOC_FRAG_HINT
+    return jemk_get_defrag_hint(ptr,bin_util,run_util);
+#else
+    log_err("jemk_get_defrag_hint() is not available in jemalloc.");
+    return -1;
+#endif
+}
+
 
 MEMKIND_EXPORT void *memkind_default_mmap(struct memkind *kind, void *addr,
                                           size_t size)

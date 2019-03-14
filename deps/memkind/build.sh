@@ -45,5 +45,4 @@ fi
 
 #use V=1 for full cmdlines of build
 make all -j $MAKEOPTS
-#uncomment line below to enable test in build
 #make checkprogs -j $MAKEOPTS

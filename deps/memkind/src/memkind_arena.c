@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 - 2018 Intel Corporation.
+ * Copyright (C) 2014 - 2019 Intel Corporation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,7 @@
 #include <smmintrin.h>
 #include <limits.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <assert.h>
 
 #include "config.h"
@@ -68,11 +69,6 @@ static unsigned int round_pow2_up(unsigned int v)
     return v;
 }
 
-static int min_int(int a, int b)
-{
-    return a > b ? b : a;
-}
-
 MEMKIND_EXPORT int memkind_set_arena_map_len(struct memkind *kind)
 {
     if (kind->ops->get_arena == memkind_bijective_get_arena) {
@@ -94,7 +90,7 @@ MEMKIND_EXPORT int memkind_set_arena_map_len(struct memkind *kind)
             int calculated_arena_num = numa_num_configured_cpus() * 4;
 
 #if ARENA_LIMIT_PER_KIND != 0
-            calculated_arena_num = min_int(ARENA_LIMIT_PER_KIND, calculated_arena_num);
+            calculated_arena_num = MIN((ARENA_LIMIT_PER_KIND), calculated_arena_num);
 #endif
             kind->arena_map_len = calculated_arena_num;
         }
@@ -450,6 +446,24 @@ static inline int memkind_lookup_arena(void *ptr, unsigned int *arena)
     return 0;
 }
 
+MEMKIND_EXPORT struct memkind *memkind_arena_detect_kind(void *ptr)
+{
+    if (!ptr) {
+        return NULL;
+    }
+    struct memkind *kind = NULL;
+    unsigned arena;
+    int err = memkind_lookup_arena(ptr, &arena);
+    if (MEMKIND_LIKELY(!err)) {
+        kind = get_kind_by_arena(arena);
+    }
+
+    /* if no kind was associated with arena it means that allocation doesn't come from
+       jemk_*allocx API - it is jemk_*alloc API (MEMKIND_DEFAULT) */
+
+    return (kind) ? kind : MEMKIND_DEFAULT;
+}
+
 static inline int get_tcache_flag(unsigned partition, size_t size)
 {
 
@@ -495,19 +509,18 @@ MEMKIND_EXPORT void *memkind_arena_malloc(struct memkind *kind, size_t size)
 
 MEMKIND_EXPORT void memkind_arena_free(struct memkind *kind, void *ptr)
 {
-    if (!kind && ptr != NULL) {
-        unsigned int arena;
-        int err = memkind_lookup_arena(ptr, &arena);
-        if (MEMKIND_LIKELY(!err)) {
-            kind = get_kind_by_arena(arena);
-        }
-    }
-
-    if (!kind) {
+    if (kind == MEMKIND_DEFAULT) {
         jemk_free(ptr);
     } else if (ptr != NULL) {
         jemk_dallocx(ptr, get_tcache_flag(kind->partition, 0));
     }
+}
+
+MEMKIND_EXPORT void memkind_arena_free_with_kind_detect(void *ptr)
+{
+    struct memkind *kind = memkind_arena_detect_kind(ptr);
+
+    memkind_arena_free(kind, ptr);
 }
 
 MEMKIND_EXPORT void *memkind_arena_realloc(struct memkind *kind, void *ptr,
@@ -517,7 +530,7 @@ MEMKIND_EXPORT void *memkind_arena_realloc(struct memkind *kind, void *ptr,
     unsigned int arena;
 
     if (size == 0 && ptr != NULL) {
-        memkind_free(kind, ptr);
+        memkind_arena_free(kind, ptr);
         ptr = NULL;
     } else {
         err = kind->ops->get_arena(kind, &arena, size);
@@ -532,6 +545,21 @@ MEMKIND_EXPORT void *memkind_arena_realloc(struct memkind *kind, void *ptr,
         }
     }
     return ptr;
+}
+
+MEMKIND_EXPORT void *memkind_arena_realloc_with_kind_detect(void *ptr,
+                                                            size_t size)
+{
+    if (!ptr) {
+        errno = EINVAL;
+        return NULL;
+    }
+    struct memkind *kind = memkind_arena_detect_kind(ptr);
+    if (kind == MEMKIND_DEFAULT) {
+        return memkind_default_realloc(kind, ptr, size);
+    } else {
+        return memkind_arena_realloc(kind, ptr, size);
+    }
 }
 
 // TODO: function is workaround for PR#1302 in jemalloc upstream
@@ -584,6 +612,9 @@ MEMKIND_EXPORT int memkind_arena_posix_memalign(struct memkind *kind,
         err = memkind_posix_check_alignment(kind, alignment);
     }
     if (MEMKIND_LIKELY(!err)) {
+        if (MEMKIND_UNLIKELY(size_out_of_bounds(size))) {
+            return 0;
+        }
         /* posix_memalign should not change errno.
            Set it to its previous value after calling jemalloc */
         errno_before = errno;
