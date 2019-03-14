@@ -25,7 +25,7 @@
 set -e
 
 if [ -z "$JE_PREFIX" ]; then
-        export JE_PREFIX=jemk_
+        export JE_PREFIX=je_
 fi
 
 cd $(dirname $0)
