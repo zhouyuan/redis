@@ -62,7 +62,7 @@ void zlibc_free(void *ptr) {
 #define calloc(count,size) tc_calloc(count,size)
 #define realloc(ptr,size) tc_realloc(ptr,size)
 #define free(ptr) tc_free(ptr)
-#elif defined(USE_JEMALLOC)
+#elif defined(USE_JEMALLOC) || defined(USE_MEMKIND)
 #define malloc(size) je_malloc(size)
 #define calloc(count,size) je_calloc(count,size)
 #define realloc(ptr,size) je_realloc(ptr,size)
@@ -399,7 +399,7 @@ size_t zmalloc_get_rss(void) {
 }
 #endif
 
-#if defined(USE_JEMALLOC)
+#if defined(USE_JEMALLOC) || defined(USE_MEMKIND)
 int zmalloc_get_allocator_info(size_t *allocated,
                                size_t *active,
                                size_t *resident) {

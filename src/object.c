@@ -423,7 +423,7 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
         return isSdsRepresentableAsLongLong(o->ptr,llval);
     }
 }
-
+#ifdef USE_MEMKIND
 void *dupObjectPM(robj* o) {
     //TODO(): dup list/set/hash/zset contents
     if (!o->ptr) return o;
@@ -443,7 +443,7 @@ void *dupObjectPM(robj* o) {
 
     return old;
 }
-
+#endif
 /* Try to encode a string object in order to save space */
 robj *tryObjectEncoding(robj *o) {
     long value;
