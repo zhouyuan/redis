@@ -25,7 +25,7 @@
 set -e
 
 if [ -z "$JE_PREFIX" ]; then
-        export JE_PREFIX=jemk_
+        export JE_PREFIX=je_
 fi
 
 cd $(dirname $0)
@@ -45,5 +45,4 @@ fi
 
 #use V=1 for full cmdlines of build
 make all -j $MAKEOPTS
-#uncomment line below to enable test in build
 #make checkprogs -j $MAKEOPTS

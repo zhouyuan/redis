@@ -1636,8 +1636,6 @@ void initServerConfig(void) {
 
     server.pm_dir_path = NULL;
     server.pm_file_size = 0;
-    server.use_volatile = true;
-    server.keys_on_pm = true;
 
     unsigned int lruclock = getLRUClock();
     atomicSet(server.lruclock,lruclock);
@@ -2437,7 +2435,7 @@ void call(client *c, int flags) {
     c->flags &= ~(CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
     redisOpArray prev_also_propagate = server.also_propagate;
     redisOpArrayInit(&server.also_propagate);
-
+#ifdef USE_MEMKIND
     if ((client_old_flags || CMD_WRITE) && server.rdb_child_pid != -1) {
         // cow: dup content on pmem if key exists already
         if (c->argc >=2) {
@@ -2451,6 +2449,7 @@ void call(client *c, int flags) {
           }
         }
     }
+#endif
     /* Call the command. */
     dirty = server.dirty;
     start = ustime();
@@ -4179,7 +4178,7 @@ int main(int argc, char **argv) {
     server.supervised = redisIsSupervised(server.supervised_mode);
     int background = server.daemonize && !server.supervised;
     if (background) daemonize();
-
+#ifdef USE_MEMKIND
     if (server.pm_dir_path) {
         int err = memkind_create_pmem(server.pm_dir_path, server.pm_file_size, &server.pmem_kind1);
         if (err) {
@@ -4194,6 +4193,7 @@ int main(int argc, char **argv) {
         fprintf(stderr,"Example: ./redis-server --pmdir /mnt/pmem/ 1g\n\n");
         exit(1);
     }
+#endif
 
     initServer();
     if (background || server.pidfile) createPidFile();

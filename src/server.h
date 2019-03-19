@@ -48,9 +48,9 @@
 #include <netinet/in.h>
 #include <lua.h>
 #include <signal.h>
-
+#ifdef USE_MEMKIND
 #include "memkind.h"
-
+#endif
 typedef long long mstime_t; /* millisecond time type. */
 
 #include "ae.h"      /* Event driven programming library */
@@ -1057,9 +1057,7 @@ struct redisServer {
     /* PM parameters */
     struct memkind *pmem_kind1;     /* Persistent memory kind */
     char* pm_dir_path;              /* Path to pmem directory */
-    bool keys_on_pm;                /* Keys on Persistent memory */
     size_t pm_file_size;            /* Limit for pmem pool size */
-    bool use_volatile;              /* Indicates volatile usage */
     /* AOF persistence */
     int aof_state;                  /* AOF_(ON|OFF|WAIT_REWRITE) */
     int aof_fsync;                  /* Kind of fsync() policy */
