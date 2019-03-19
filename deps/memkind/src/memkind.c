@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 - 2018 Intel Corporation.
+ * Copyright (C) 2014 - 2019 Intel Corporation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -342,6 +342,11 @@ MEMKIND_EXPORT int memkind_destroy_kind(memkind_t kind)
     return err;
 }
 
+MEMKIND_EXPORT memkind_t memkind_detect_kind(void *ptr)
+{
+    return heap_manager_detect_kind(ptr);
+}
+
 /* Declare weak symbols for allocator decorators */
 extern void memkind_malloc_pre(struct memkind **,
                                size_t *) __attribute__((weak));
@@ -511,6 +516,17 @@ exit:
 }
 
 #ifdef __GNUC__
+__attribute__((constructor))
+#endif
+static void memkind_construct(void)
+{
+    const char *env = getenv("MEMKIND_HEAP_MANAGER");
+    if (env && strcmp(env, "TBB") == 0) {
+        load_tbb_symbols();
+    }
+}
+
+#ifdef __GNUC__
 __attribute__((destructor))
 #endif
 static int memkind_finalize(void)
@@ -639,15 +655,18 @@ MEMKIND_EXPORT void *memkind_realloc(struct memkind *kind, void *ptr,
 {
     void *result;
 
-    pthread_once(&kind->init_once, kind->ops->init_once);
-
 #ifdef MEMKIND_DECORATION_ENABLED
     if (memkind_realloc_pre) {
         memkind_realloc_pre(&kind, &ptr, &size);
     }
 #endif
 
-    result = kind->ops->realloc(kind, ptr, size);
+    if (!kind) {
+        result = heap_manager_realloc(ptr, size);
+    } else {
+        pthread_once(&kind->init_once, kind->ops->init_once);
+        result = kind->ops->realloc(kind, ptr, size);
+    }
 
 #ifdef MEMKIND_DECORATION_ENABLED
     if (memkind_realloc_post) {
@@ -666,7 +685,7 @@ MEMKIND_EXPORT void memkind_free(struct memkind *kind, void *ptr)
     }
 #endif
     if (!kind) {
-        heap_manager_free(kind, ptr);
+        heap_manager_free(ptr);
     } else {
         pthread_once(&kind->init_once, kind->ops->init_once);
         kind->ops->free(kind, ptr);

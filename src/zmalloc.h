@@ -55,6 +55,16 @@
 #error "Newer version of jemalloc required"
 #endif
 
+#elif defined(USE_MEMKIND)
+#define ZMALLOC_LIB ("jemalloc-" __xstr(JEMALLOC_VERSION_MAJOR) "." __xstr(JEMALLOC_VERSION_MINOR) "." __xstr(JEMALLOC_VERSION_BUGFIX))
+#include <jemalloc/jemalloc.h>
+#if (JEMALLOC_VERSION_MAJOR == 2 && JEMALLOC_VERSION_MINOR >= 1) || (JEMALLOC_VERSION_MAJOR > 2)
+#define HAVE_MALLOC_SIZE 1
+#define zmalloc_size(p) je_malloc_usable_size(p)
+#else
+#error "Newer version of jemalloc required"
+#endif
+
 #elif defined(__APPLE__)
 #include <malloc/malloc.h>
 #define HAVE_MALLOC_SIZE 1
@@ -74,6 +84,9 @@
  * and the version used is our special version modified for Redis having
  * the ability to return per-allocation fragmentation hints. */
 #if defined(USE_JEMALLOC) && defined(JEMALLOC_FRAG_HINT)
+#define HAVE_DEFRAG
+#endif
+#if defined(USE_MEMKIND) && defined(JEMALLOC_FRAG_HINT)
 #define HAVE_DEFRAG
 #endif
 
