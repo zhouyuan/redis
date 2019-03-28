@@ -31,6 +31,7 @@
 #include "server.h"
 #include <math.h>
 #include <ctype.h>
+#include <assert.h>
 
 #ifdef __CYGWIN__
 #define strtold(a,b) ((long double)strtod((a),(b)))
@@ -423,26 +424,56 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
         return isSdsRepresentableAsLongLong(o->ptr,llval);
     }
 }
+
 #ifdef USE_MEMKIND
-void *dupObjectPM(robj* o) {
-    //TODO(): dup list/set/hash/zset contents
-    if (!o->ptr) return o;
-    if (o->encoding == OBJ_ENCODING_INT) return o;
+//unsigned char* dupPMAddr(unsigned char* ptr) {
+//    if(server.rdb_child_pid != -1 && zmalloc_get_location(ptr) == PMEM_LOCATION){
+//        serverAssert(*(uint32_t*)ptr < 1073741824);
+//        serverAssert(*(uint32_t*)(ptr+sizeof(uint32_t)) < 1073741824);
+//        size_t len = memkind_malloc_usable_size(NULL, ptr);
+//        void* copy = zmalloc_pmem(len);
+//        if (copy != NULL) {
+//          memcpy(copy, ptr, len);
+//          serverAssert(memkind_malloc_usable_size(NULL, copy) == len);
+//          serverAssert(memcmp(copy, ptr, len) == 0);
+//          //serverAssert(*(uint32_t*)copy < 1073741824);
+//          //serverAssert(*(uint32_t*)(copy+sizeof(uint32_t)) < 1073741824);
+//          if (*(uint32_t*)copy > 1073741824) {
+//	    //serverAssert(0);
+//             assert(0);
+//          }
+//          if (*(uint32_t*)(copy+sizeof(uint32_t)) > 1073741824) {
+//            //serverAssert(0);
+//             assert(0);
+//          }
+//          assert(*(uint32_t*)copy == *(uint32_t*)ptr);
+//          assert(*(uint32_t*)(copy+sizeof(uint32_t)) == *(uint32_t*)(ptr+sizeof(uint32_t)));
+//          usleep(5000);
+//          freeContentAsync(ptr);
+//          return copy;
+//        } else {
+//          serverAssert(0);
+//        }
+//    }
+//    return ptr;
+//}
 
-    if(zmalloc_get_location(o->ptr) == DRAM_LOCATION) {
-      return o->ptr;
-    }
-
-    int len = sdslen(o->ptr);
-    if (len <= 44) return o;
-    void* copy = sdsnewlenPM(o->ptr, len);
-    void* old = o->ptr;
-
-    o->ptr = copy;
-
-    return old;
-}
+//void dupObjectPM(robj* o) {
+//    if (o->type == OBJ_LIST) {
+//        if (o->encoding == OBJ_ENCODING_QUICKLIST) {
+//            quicklist *ql = o->ptr;
+//            quicklistNode *node = ql->head;
+//            while(node) {
+//                node->zl = dupPMAddr(node->zl);
+//                node = node->next;
+//            }
+//        } else {
+//            serverPanic("Unknown list encoding");
+//        }
+//    }
+//}
 #endif
+
 /* Try to encode a string object in order to save space */
 robj *tryObjectEncoding(robj *o) {
     long value;
@@ -517,8 +548,9 @@ robj *tryObjectEncoding(robj *o) {
     {
         o->ptr = sdsRemoveFreeSpace(o->ptr);
     }
-    // move string type content to PMEM
+#ifdef USE_MEMKIND
     o->ptr = sdstoPM(o->ptr);
+#endif
 
     /* Return the original object. */
     return o;

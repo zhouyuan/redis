@@ -93,8 +93,7 @@ pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #ifdef USE_MEMKIND
 static struct memkind *pmem_kind;
-int zmalloc_get_location (void * ptr)
-{
+int zmalloc_get_location (void * ptr) {
     struct memkind *temp_kind = memkind_detect_kind(ptr);
     ///TODO only for validation function should return 0/1
     if(!temp_kind) {
@@ -106,7 +105,8 @@ int zmalloc_get_location (void * ptr)
     }
 }
 
-void zmalloc_init_pmem(const char* pm_dir_path, size_t pm_file_size) {   int err = memkind_create_pmem(pm_dir_path, pm_file_size, &pmem_kind);
+void zmalloc_init_pmem(const char* pm_dir_path, size_t pm_file_size) {
+    int err = memkind_create_pmem(pm_dir_path, pm_file_size, &pmem_kind);
     if (err) {
         perror("memkind_create_pmem()");
         fprintf(stderr, "Unable to create pmem partition\n");
@@ -117,6 +117,17 @@ void zmalloc_init_pmem(const char* pm_dir_path, size_t pm_file_size) {   int err
 }
 void zmalloc_destroy_pmem() {
     memkind_destroy_kind(pmem_kind);
+}
+static void* (*pmem_malloc)(size_t size) = NULL;
+static void (*pmem_free)(void* ptr) = NULL;
+static void* (*pmem_realloc)(void* ptr,size_t size) = NULL;
+void zmalloc_init_pmem_functions(void* (*_pmem_malloc)(size_t),
+                            void (*_pmem_free)(void*),
+                            void* (*_pmem_realloc)(void*,size_t)){
+
+    pmem_malloc = _pmem_malloc;
+    pmem_free = _pmem_free;
+    pmem_realloc = _pmem_realloc;
 }
 #endif
 

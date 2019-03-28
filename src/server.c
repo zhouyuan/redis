@@ -33,6 +33,9 @@
 #include "bio.h"
 #include "latency.h"
 #include "atomicvar.h"
+#ifdef USE_MEMKIND
+#include "memkind_cow.h"
+#endif
 #include <time.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -2433,6 +2436,7 @@ void call(client *c, int flags) {
     redisOpArray prev_also_propagate = server.also_propagate;
     redisOpArrayInit(&server.also_propagate);
 #ifdef USE_MEMKIND
+/*
     if ((client_old_flags || CMD_WRITE) && server.rdb_child_pid != -1) {
         // cow: dup content on pmem if key exists already
         if (c->argc >=2) {
@@ -2441,11 +2445,11 @@ void call(client *c, int flags) {
           if (lookupKeyWrite(db, key) != NULL) {
               dictEntry *de = dictFind(db->dict,key->ptr);
               robj *val = dictGetVal(de);
-              void *pmem_addr = dupObjectPM(val);
-              freeContentAsync(pmem_addr);
+              dupObjectPM(val);
           }
         }
     }
+*/
 #endif
     /* Call the command. */
     dirty = server.dirty;
@@ -4055,6 +4059,9 @@ int main(int argc, char **argv) {
     setlocale(LC_COLLATE,"");
     tzset(); /* Populates 'timezone' global. */
     zmalloc_set_oom_handler(redisOutOfMemoryHandler);
+#ifdef USE_MEMKIND
+    zmalloc_init_pmem_functions(memkind_alloc_wrapper,memkind_free_wrapper, memkind_realloc_wrapper);
+#endif
     srand(time(NULL)^getpid());
     gettimeofday(&tv,NULL);
 

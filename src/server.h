@@ -1531,7 +1531,10 @@ void freeListObject(robj *o);
 void freeSetObject(robj *o);
 void freeZsetObject(robj *o);
 void freeHashObject(robj *o);
-void *dupObjectPM(robj* o);
+#ifdef USE_MEMKIND
+//unsigned char* dupPMAddr(unsigned char* ptr);
+//void dupObjectPM(robj *o);
+#endif
 robj *createObject(int type, void *ptr);
 robj *createStringObject(const char *ptr, size_t len);
 robj *createStringObjectPM(const char *ptr, size_t len);

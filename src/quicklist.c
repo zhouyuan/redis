@@ -34,9 +34,16 @@
 #include "ziplist.h"
 #include "util.h" /* for ll2string */
 #include "lzf.h"
+#include "memkind_cow.h"
+#include <assert.h>
 
 #if defined(REDIS_TEST) || defined(REDIS_TEST_VERBOSE)
 #include <stdio.h> /* for printf (debug printing), snprintf (genstr) */
+#endif
+
+#define UNUSED(x) (void)(x)
+#ifdef NDEBUG
+#undef NDEBUG
 #endif
 
 #ifndef REDIS_STATIC
@@ -473,6 +480,9 @@ REDIS_STATIC int _quicklistNodeAllowMerge(const quicklistNode *a,
         (node)->sz = ziplistBlobLen((node)->zl);                               \
     } while (0)
 
+#ifdef USE_MEMKIND
+//extern unsigned char* dupPMAddr(unsigned char*);
+#endif
 /* Add new entry to head node of quicklist.
  *
  * Returns 0 if used existing head.
@@ -481,12 +491,21 @@ int quicklistPushHead(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_head = quicklist->head;
     if (likely(
             _quicklistNodeAllowInsert(quicklist->head, quicklist->fill, sz))) {
+#ifdef USE_MEMKIND
+        void* oldptr = quicklist->head->zl;
+        UNUSED(oldptr);
+        quicklist->head->zl = (dupPMAddr(quicklist->head->zl));
+#endif
         quicklist->head->zl =
             ziplistPush(quicklist->head->zl, value, sz, ZIPLIST_HEAD);
         quicklistNodeUpdateSz(quicklist->head);
     } else {
         quicklistNode *node = quicklistCreateNode();
+#ifdef USE_MEMKIND
+        node->zl = ziplistPush(ziplistNewPM(), value, sz, ZIPLIST_HEAD);
+#else
         node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_HEAD);
+#endif
 
         quicklistNodeUpdateSz(node);
         _quicklistInsertNodeBefore(quicklist, quicklist->head, node);
@@ -504,12 +523,21 @@ int quicklistPushTail(quicklist *quicklist, void *value, size_t sz) {
     quicklistNode *orig_tail = quicklist->tail;
     if (likely(
             _quicklistNodeAllowInsert(quicklist->tail, quicklist->fill, sz))) {
+#ifdef USE_MEMKIND
+        void* oldptr = quicklist->tail->zl;
+        UNUSED(oldptr);
+        quicklist->tail->zl = (dupPMAddr(quicklist->tail->zl));
+#endif
         quicklist->tail->zl =
             ziplistPush(quicklist->tail->zl, value, sz, ZIPLIST_TAIL);
         quicklistNodeUpdateSz(quicklist->tail);
     } else {
         quicklistNode *node = quicklistCreateNode();
+#ifdef USE_MEMKIND
+        node->zl = ziplistPush(ziplistNewPM(), value, sz, ZIPLIST_TAIL);
+#else
         node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_TAIL);
+#endif
 
         quicklistNodeUpdateSz(node);
         _quicklistInsertNodeAfter(quicklist, quicklist->tail, node);
@@ -614,6 +642,18 @@ REDIS_STATIC int quicklistDelIndex(quicklist *quicklist, quicklistNode *node,
                                    unsigned char **p) {
     int gone = 0;
 
+#ifdef USE_MEMKIND
+    void* oldptr = node->zl;
+    UNUSED(oldptr);
+    void* oldptr2 =dupPMAddr(node->zl);
+    int len = memkind_malloc_usable_size(NULL, oldptr);
+    int len2 = memkind_malloc_usable_size(NULL, oldptr2);
+    assert(len == len2);
+    if(memcmp(oldptr, oldptr2, len) != 0) {
+       assert(0);
+    }
+    node->zl = oldptr2;
+#endif
     node->zl = ziplistDelete(node->zl, p);
     node->count--;
     if (node->count == 0) {
@@ -668,6 +708,11 @@ int quicklistReplaceAtIndex(quicklist *quicklist, long index, void *data,
                             int sz) {
     quicklistEntry entry;
     if (likely(quicklistIndex(quicklist, index, &entry))) {
+#ifdef USE_MEMKIND
+        void* oldptr = entry.node->zl;
+        UNUSED(oldptr);
+        entry.node->zl = dupPMAddr(entry.node->zl);
+#endif
         /* quicklistIndex provides an uncompressed node */
         entry.node->zl = ziplistDelete(entry.node->zl, &entry.zi);
         entry.node->zl = ziplistInsert(entry.node->zl, entry.zi, data, sz);
@@ -840,7 +885,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
         /* we have no reference node, so let's create only node in the list */
         D("No node given!");
         new_node = quicklistCreateNode();
+#ifdef USE_MEMKIND
+        new_node->zl = ziplistPush(ziplistNewPM(), value, sz, ZIPLIST_HEAD);
+#else
         new_node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_HEAD);
+#endif
         __quicklistInsertNode(quicklist, NULL, new_node, after);
         new_node->count++;
         quicklist->count++;
@@ -877,6 +926,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
         D("Not full, inserting after current position.");
         quicklistDecompressNodeForUse(node);
         unsigned char *next = ziplistNext(node->zl, entry->zi);
+#ifdef USE_MEMKIND
+        void* oldptr = node->zl;
+        UNUSED(oldptr);
+        node->zl = dupPMAddr(node->zl);
+#endif
         if (next == NULL) {
             node->zl = ziplistPush(node->zl, value, sz, ZIPLIST_TAIL);
         } else {
@@ -888,6 +942,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
     } else if (!full && !after) {
         D("Not full, inserting before current position.");
         quicklistDecompressNodeForUse(node);
+#ifdef USE_MEMKIND
+        void* oldptr = node->zl;
+        UNUSED(oldptr);
+        node->zl = dupPMAddr(node->zl);
+#endif
         node->zl = ziplistInsert(node->zl, entry->zi, value, sz);
         node->count++;
         quicklistNodeUpdateSz(node);
@@ -898,6 +957,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
         D("Full and tail, but next isn't full; inserting next node head");
         new_node = node->next;
         quicklistDecompressNodeForUse(new_node);
+#ifdef USE_MEMKIND
+        void* oldptr = node->zl;
+        UNUSED(oldptr);
+        node->zl = dupPMAddr(node->zl);
+#endif
         new_node->zl = ziplistPush(new_node->zl, value, sz, ZIPLIST_HEAD);
         new_node->count++;
         quicklistNodeUpdateSz(new_node);
@@ -908,6 +972,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
         D("Full and head, but prev isn't full, inserting prev node tail");
         new_node = node->prev;
         quicklistDecompressNodeForUse(new_node);
+#ifdef USE_MEMKIND
+        void* oldptr = node->zl;
+        UNUSED(oldptr);
+        node->zl = dupPMAddr(node->zl);
+#endif
         new_node->zl = ziplistPush(new_node->zl, value, sz, ZIPLIST_TAIL);
         new_node->count++;
         quicklistNodeUpdateSz(new_node);
@@ -918,7 +987,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
          *   - create new node and attach to quicklist */
         D("\tprovisioning new node...");
         new_node = quicklistCreateNode();
+#ifdef USE_MEMKIND
+        new_node->zl = ziplistPush(ziplistNewPM(), value, sz, ZIPLIST_HEAD);
+#else
         new_node->zl = ziplistPush(ziplistNew(), value, sz, ZIPLIST_HEAD);
+#endif
         new_node->count++;
         quicklistNodeUpdateSz(new_node);
         __quicklistInsertNode(quicklist, node, new_node, after);
@@ -928,6 +1001,11 @@ REDIS_STATIC void _quicklistInsert(quicklist *quicklist, quicklistEntry *entry,
         D("\tsplitting node...");
         quicklistDecompressNodeForUse(node);
         new_node = _quicklistSplitNode(node, entry->offset, after);
+#ifdef USE_MEMKIND
+        void* oldptr = node->zl;
+        UNUSED(oldptr);
+        new_node->zl = dupPMAddr(new_node->zl);
+#endif
         new_node->zl = ziplistPush(new_node->zl, value, sz,
                                    after ? ZIPLIST_HEAD : ZIPLIST_TAIL);
         new_node->count++;
@@ -1020,6 +1098,11 @@ int quicklistDelRange(quicklist *quicklist, const long start,
             __quicklistDelNode(quicklist, node);
         } else {
             quicklistDecompressNodeForUse(node);
+#ifdef USE_MEMKIND
+            void* oldptr = node->zl;
+        UNUSED(oldptr);
+            node->zl = dupPMAddr(node->zl);
+#endif
             node->zl = ziplistDeleteRange(node->zl, entry.offset, del);
             quicklistNodeUpdateSz(node);
             node->count -= del;
@@ -1349,6 +1432,16 @@ int quicklistPopCustom(quicklist *quicklist, int where, unsigned char **data,
         return 0;
     }
 
+#ifdef USE_MEMKIND
+    void* oldptr = node->zl;
+        UNUSED(oldptr);
+    node->zl = dupPMAddr(node->zl);
+    int len = memkind_malloc_usable_size(NULL, oldptr);
+    int len2 = memkind_malloc_usable_size(NULL, node->zl);
+    assert(len == len2);
+    assert(memcmp(oldptr, node->zl, len) == 0);
+    void* oldptr2 = node->zl;
+#endif
     p = ziplistIndex(node->zl, pos);
     if (ziplistGet(p, &vstr, &vlen, &vlong)) {
         if (vstr) {

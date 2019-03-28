@@ -574,6 +574,17 @@ void zipEntry(unsigned char *p, zlentry *e) {
     e->p = p;
 }
 
+unsigned char *ziplistNewPM(void) {
+    unsigned int bytes = ZIPLIST_HEADER_SIZE+1;
+    //unsigned char *zl = zmalloc_pmem(bytes);
+    unsigned char *zl = zmalloc(bytes);
+    ZIPLIST_BYTES(zl) = intrev32ifbe(bytes);
+    ZIPLIST_TAIL_OFFSET(zl) = intrev32ifbe(ZIPLIST_HEADER_SIZE);
+    ZIPLIST_LENGTH(zl) = 0;
+    zl[bytes-1] = ZIP_END;
+    return zl;
+}
+
 /* Create a new empty ziplist. */
 unsigned char *ziplistNew(void) {
     unsigned int bytes = ZIPLIST_HEADER_SIZE+1;
@@ -590,6 +601,11 @@ unsigned char *ziplistResize(unsigned char *zl, unsigned int len) {
     zl = zrealloc(zl,len);
     ZIPLIST_BYTES(zl) = intrev32ifbe(len);
     zl[len-1] = ZIP_END;
+    if (len > 1024 && zmalloc_get_location(zl) != PMEM_LOCATION) {
+      unsigned char *newzl = zmalloc_pmem(len);
+      memcpy(newzl, zl, len);
+      zl = newzl;
+    }
     return zl;
 }
 
@@ -750,7 +766,6 @@ unsigned char *__ziplistInsert(unsigned char *zl, unsigned char *p, unsigned cha
                                     that is easy to see if for some reason
                                     we use it uninitialized. */
     zlentry tail;
-
     /* Find out prevlen for the entry that is inserted. */
     if (p[0] != ZIP_END) {
         ZIP_DECODE_PREVLEN(p, prevlensize, prevlen);

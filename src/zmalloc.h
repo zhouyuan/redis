@@ -107,6 +107,9 @@ void *zmemset(void* ptr, int value, size_t num);
 #define WRONG_LOCATION 2
 int zmalloc_get_location (void * ptr);
 void zmalloc_destroy_pmem();
+void zmalloc_init_pmem_functions(void* (*_pmem_malloc)(size_t),
+                                void (*_pmem_free)(void*),
+                                void* (*_pmem_realloc)(void*,size_t));
 void zmalloc_init_pmem(const char* pm_dir_path, size_t pm_file_size);
 void *zmalloc_pmem(size_t size);
 #endif
