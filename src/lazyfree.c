@@ -32,6 +32,9 @@ size_t lazyfreeGetFreeEffort(robj *obj) {
     if (obj->type == OBJ_LIST) {
         quicklist *ql = obj->ptr;
         return ql->len;
+    } if (obj->type == OBJ_STREAM) {
+        stream *s = obj->ptr;
+        return s->length;
     } else if (obj->type == OBJ_SET && obj->encoding == OBJ_ENCODING_HT) {
         dict *ht = obj->ptr;
         return dictSize(ht);
