@@ -519,6 +519,10 @@ void loadServerConfigFromString(char *config) {
                 err = "Invalid negative percentage for AOF auto rewrite";
                 goto loaderr;
             }
+        } else if (!strcasecmp(argv[0],"aof-preallocate-size") &&
+                   argc == 2)
+        {
+            server.aof_preallocate_size = memtoll(argv[1],NULL);
         } else if (!strcasecmp(argv[0],"auto-aof-rewrite-min-size") &&
                    argc == 2)
         {
@@ -2293,6 +2297,7 @@ int rewriteConfig(char *path) {
     rewriteConfigEnumOption(state,"appendfsync",server.aof_fsync,aof_fsync_enum,CONFIG_DEFAULT_AOF_FSYNC);
     rewriteConfigYesNoOption(state,"no-appendfsync-on-rewrite",server.aof_no_fsync_on_rewrite,CONFIG_DEFAULT_AOF_NO_FSYNC_ON_REWRITE);
     rewriteConfigNumericalOption(state,"auto-aof-rewrite-percentage",server.aof_rewrite_perc,AOF_REWRITE_PERC);
+    rewriteConfigBytesOption(state,"aof-preallocate-size",server.aof_preallocate_size,0);
     rewriteConfigBytesOption(state,"auto-aof-rewrite-min-size",server.aof_rewrite_min_size,AOF_REWRITE_MIN_SIZE);
     rewriteConfigNumericalOption(state,"lua-time-limit",server.lua_time_limit,LUA_SCRIPT_TIME_LIMIT);
     rewriteConfigYesNoOption(state,"cluster-enabled",server.cluster_enabled,0);

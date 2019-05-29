@@ -2847,6 +2847,7 @@ void initServer(void) {
                 strerror(errno));
             exit(1);
         }
+        aofTryFallocate(server.aof_fd, server.aof_preallocate_size);
     }
 
     /* 32 bit instances are limited to 4GB of address space, so if there is

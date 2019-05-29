@@ -42,6 +42,7 @@
 
 void aofUpdateCurrentSize(void);
 void aofClosePipes(void);
+void aofTryFallocate(int, off_t);
 
 /* ----------------------------------------------------------------------------
  * AOF rewrite buffer implementation.
@@ -264,6 +265,8 @@ int startAppendOnly(void) {
             strerror(errno));
         return C_ERR;
     }
+    aofTryFallocate(newfd, server.aof_preallocate_size);
+
     if (server.rdb_child_pid != -1) {
         server.aof_rewrite_scheduled = 1;
         serverLog(LL_WARNING,"AOF was enabled but there is already a child process saving an RDB file on disk. An AOF background was scheduled to start when possible.");
@@ -1662,6 +1665,25 @@ void aofUpdateCurrentSize(void) {
     latencyAddSampleIfNeeded("aof-fstat",latency);
 }
 
+/* Try to pre-allocate disk space for AOF file.*/
+void aofTryFallocate(int fd, off_t size) {
+// fallocate() in Linux specific
+#ifdef __linux__
+    if (size <=0) return;
+    struct redis_stat sb;
+    if (redis_fstat(fd, &sb) != -1 && sb.st_size == 0) {
+        //TODO(): try best to allocate the right size on different cases?
+        // - on empty, size = aof_rewrite_min_size * auto-aof-rewrite-percentage
+        // - on rewrite, size = aof_rewrite_min_size * auto-aof-rewrite-percentage
+        // - on aof rewirte off, size = configurable
+        if (fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, size) == -1)
+            serverLog(LL_WARNING,
+                "Unable to pre-allocate AOF file to size %ld. stat: %s",
+                size, strerror(errno));
+    }
+#endif
+}
+
 /* A background append only file rewriting (BGREWRITEAOF) terminated its work.
  * Handle this. */
 void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
@@ -1685,6 +1707,7 @@ void backgroundRewriteDoneHandler(int exitcode, int bysignal) {
                 "Unable to open the temporary AOF produced by the child: %s", strerror(errno));
             goto cleanup;
         }
+        //aofTryFallocate(newfd);
 
         if (aofRewriteBufferWrite(newfd) == -1) {
             serverLog(LL_WARNING,
