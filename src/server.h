@@ -1147,6 +1147,7 @@ struct redisServer {
     char *aof_filename;             /* Name of the AOF file */
     int aof_no_fsync_on_rewrite;    /* Don't fsync if a rewrite is in prog. */
     int aof_rewrite_perc;           /* Rewrite AOF if % growth is > M and... */
+    off_t aof_preallocate_size;     /* Preallocate N bytes for AOF file. */
     off_t aof_rewrite_min_size;     /* the AOF file is at least N bytes. */
     off_t aof_rewrite_base_size;    /* AOF size on latest startup or rewrite. */
     off_t aof_current_size;         /* AOF current size. */
@@ -1741,6 +1742,7 @@ void aofRewriteBufferReset(void);
 unsigned long aofRewriteBufferSize(void);
 ssize_t aofReadDiffFromParent(void);
 void killAppendOnlyChild(void);
+void aofTryFallocate(int, off_t);
 
 /* Child info */
 void openChildInfoPipe(void);
