@@ -44,6 +44,7 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
@@ -2841,13 +2842,19 @@ void initServer(void) {
     /* Open the AOF file if needed. */
     if (server.aof_state == AOF_ON) {
         server.aof_fd = open(server.aof_filename,
-                               O_WRONLY|O_APPEND|O_CREAT,0644);
+                               O_RDWR|O_APPEND|O_CREAT,0644);
         if (server.aof_fd == -1) {
             serverLog(LL_WARNING, "Can't open the append-only file: %s",
                 strerror(errno));
             exit(1);
         }
         aofTryFallocate(server.aof_fd, server.aof_preallocate_size);
+        server.aof_mmap = mmap(NULL, server.aof_preallocate_size, PROT_WRITE, MAP_SHARED, server.aof_fd, 0);
+        if (server.aof_mmap == MAP_FAILED) {
+            serverLog(LL_WARNING, "Can't mmap the append-only file: %s",
+                strerror(errno));
+            exit(1);
+        }
     }
 
     /* 32 bit instances are limited to 4GB of address space, so if there is

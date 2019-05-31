@@ -33,9 +33,11 @@
 
 #include <signal.h>
 #include <fcntl.h>
+#include <libpmem.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/param.h>
@@ -300,24 +302,16 @@ int startAppendOnly(void) {
  * true, and in general it looks just more resilient to retry the write. If
  * there is an actual error condition we'll get it at the next try. */
 ssize_t aofWrite(int fd, const char *buf, size_t len) {
-    ssize_t nwritten = 0, totwritten = 0;
-
-    while(len) {
-        nwritten = write(fd, buf, len);
-
-        if (nwritten < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            return totwritten ? totwritten : -1;
-        }
-
-        len -= nwritten;
-        buf += nwritten;
-        totwritten += nwritten;
+    //TODO(): need to extend the AOF file in a better way
+    if (server.aof_current_size + len > server.aof_preallocate_size) {
+        server.aof_mmap = mremap(server.aof_mmap, server.aof_preallocate_size,
+            server.aof_preallocate_size*2, MREMAP_MAYMOVE);
+        server.aof_preallocate_size = server.aof_preallocate_size*2;
     }
+    pmem_memcpy_nodrain(server.aof_mmap, buf, len);
+    server.aof_mmap += len;
 
-    return totwritten;
+    return len;
 }
 
 /* Write the append only file buffer on disk.
@@ -720,7 +714,7 @@ int loadAppendOnlyFile(char *filename) {
      * is a valid AOF because an empty server with AOF enabled will create
      * a zero length file at startup, that will remain like that if no write
      * operation is received. */
-    if (fp && redis_fstat(fileno(fp),&sb) != -1 && sb.st_size == 0) {
+    if ((fp && redis_fstat(fileno(fp),&sb) != -1 && sb.st_size == 0) || server.aof_preallocated) {
         server.aof_current_size = 0;
         server.aof_fsync_offset = server.aof_current_size;
         fclose(fp);
@@ -1676,10 +1670,13 @@ void aofTryFallocate(int fd, off_t size) {
         // - on empty, size = aof_rewrite_min_size * auto-aof-rewrite-percentage
         // - on rewrite, size = aof_rewrite_min_size * auto-aof-rewrite-percentage
         // - on aof rewirte off, size = configurable
-        if (fallocate(fd, FALLOC_FL_KEEP_SIZE, 0, size) == -1)
+        if (fallocate(fd, 0, 0, size) == -1) {
             serverLog(LL_WARNING,
                 "Unable to pre-allocate AOF file to size %ld. stat: %s",
                 size, strerror(errno));
+        } else {
+           server.aof_preallocated = true;
+        }
     }
 #endif
 }

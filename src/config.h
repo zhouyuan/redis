@@ -91,7 +91,7 @@
 
 /* Define redis_fsync to fdatasync() in Linux and fsync() for all the rest */
 #ifdef __linux__
-#define redis_fsync fdatasync
+#define redis_fsync(...) pmem_drain()
 #else
 #define redis_fsync fsync
 #endif
